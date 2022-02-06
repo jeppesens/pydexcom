@@ -1,5 +1,6 @@
 """The pydexcom module for interacting with Dexcom Share API."""
 import datetime
+from typing import Any, Dict, List, Optional
 
 import requests
 
@@ -13,9 +14,9 @@ from .const import (
     ACCOUNT_ERROR_MAX_ATTEMPTS,
     ACCOUNT_ERROR_UNKNOWN,
     ACCOUNT_ERROR_USERNAME_NULL_EMPTY,
-    ARGUEMENT_ERROR_MAX_COUNT_INVALID,
-    ARGUEMENT_ERROR_MINUTES_INVALID,
-    ARGUEMENT_ERROR_SERIAL_NUMBER_NULL_EMPTY,
+    ARGUMENT_ERROR_MAX_COUNT_INVALID,
+    ARGUMENT_ERROR_MINUTES_INVALID,
+    ARGUMENT_ERROR_SERIAL_NUMBER_NULL_EMPTY,
     DEFAULT_SESSION_ID,
     DEXCOM_APPLICATION_ID,
     DEXCOM_AUTHENTICATE_ENDPOINT,
@@ -41,7 +42,7 @@ from .errors import AccountError, ArguementError, SessionError
 class GlucoseReading:
     """Class for parsing glucose reading from Dexcom Share API."""
 
-    def __init__(self, json_glucose_reading: dict):
+    def __init__(self, json_glucose_reading: Dict[str, Any]):
         """Initialize with JSON glucose reading from Dexcom Share API."""
         self.value = json_glucose_reading["Value"]
         self.mg_dl = self.value
@@ -74,7 +75,7 @@ class Dexcom:
         endpoint: str,
         params: dict = None,
         json: dict = {},
-    ) -> dict:
+    ) -> Optional[Any]:
         """Send request to Dexcom Share API."""
         try:
             url = f"{self.base_url}/{endpoint}"
@@ -91,28 +92,29 @@ class Dexcom:
             r.raise_for_status()
             return r.json()
         except requests.HTTPError:
-            _LOGGER.error(f"json: {r.json()}")
+            json_resp = r.json()
+            _LOGGER.error(f"json: {json_resp}")
             if r.status_code == 500:
-                _LOGGER.error(f'{r.json()["Code"]}: {r.json()["Message"]}')
-                if r.json()["Code"] == "SessionNotValid":
+                _LOGGER.error(f'{json_resp["Code"]}: {json_resp["Message"]}')
+                if json_resp["Code"] == "SessionNotValid":
                     raise SessionError(SESSION_ERROR_SESSION_NOT_VALID)
-                elif r.json()["Code"] == "SessionIdNotFound":
+                elif json_resp["Code"] == "SessionIdNotFound":
                     raise SessionError(SESSION_ERROR_SESSION_NOT_FOUND)
-                elif r.json()["Code"] == "SSO_AuthenticateAccountNotFound":
+                elif json_resp["Code"] == "SSO_AuthenticateAccountNotFound":
                     raise AccountError(ACCOUNT_ERROR_ACCOUNT_NOT_FOUND)
-                elif r.json()["Code"] == "AccountPasswordInvalid":
+                elif json_resp["Code"] == "AccountPasswordInvalid":
                     raise AccountError(ACCOUNT_ERROR_PASSWORD_INVALID)
-                elif r.json()["Code"] == "SSO_AuthenticateMaxAttemptsExceeed":
+                elif json_resp["Code"] == "SSO_AuthenticateMaxAttemptsExceeed":
                     raise AccountError(ACCOUNT_ERROR_MAX_ATTEMPTS)
-                elif r.json()["Code"] == "InvalidArgument":
-                    if "accountName" in r.json()["Message"]:
+                elif json_resp["Code"] == "InvalidArgument":
+                    if "accountName" in json_resp["Message"]:
                         raise AccountError(ACCOUNT_ERROR_USERNAME_NULL_EMPTY)
-                    if "password" in r.json()["Message"]:
+                    if "password" in json_resp["Message"]:
                         raise AccountError(ACCOUNT_ERROR_PASSWORD_NULL_EMPTY)
                 else:
-                    _LOGGER.error(f'{r.json()["Code"]}: {r.json()["Message"]}')
+                    _LOGGER.error(f'{json_resp["Code"]}: {json_resp["Message"]}')  # noqa: E501
             else:
-                _LOGGER.error(f"{r.status_code}: {r.json()}")
+                _LOGGER.error(f"{r.status_code}: {json_resp}")
         except Exception:
             _LOGGER.error(r.status_code)
             _LOGGER.error("Unknown request error")
@@ -184,41 +186,44 @@ class Dexcom:
         """Verify if transmitter serial number is assigned to user."""
         self._validate_session_id()
         if not serial_number:
-            _LOGGER.error(ARGUEMENT_ERROR_SERIAL_NUMBER_NULL_EMPTY)
-            raise ArguementError(ARGUEMENT_ERROR_SERIAL_NUMBER_NULL_EMPTY)
+            _LOGGER.error(ARGUMENT_ERROR_SERIAL_NUMBER_NULL_EMPTY)
+            raise ArguementError(ARGUMENT_ERROR_SERIAL_NUMBER_NULL_EMPTY)
 
         params = {"sessionId": self.session_id, "serialNumber": serial_number}
+        r: Dict[str, Any]
         try:
-            r = self._request(
+            r = self._request(  # type: ignore
                 "post", DEXCOM_VERIFY_SERIAL_NUMBER_ENDPOINT, params=params
             )
         except SessionError:
             _LOGGER.debug("Get new session ID")
             self.create_session()
-            r = self._request(
+            r = self._request(  # type: ignore
                 "post", DEXCOM_VERIFY_SERIAL_NUMBER_ENDPOINT, params=params
             )
-        return r.json() == "AssignedToYou"
+        # return r.json() == "AssignedToYou"
+        return r["Code"] == "AssignedToYou" if r else False
 
     def get_glucose_readings(
         self, minutes: int = 1440, max_count: int = 288
-    ) -> [GlucoseReading]:
+    ) -> List[GlucoseReading]:
         """Get max_count glucose readings within specified minutes."""
         self._validate_session_id()
         if minutes < 1 or minutes > 1440:
-            _LOGGER.error(ARGUEMENT_ERROR_MINUTES_INVALID)
-            raise ArguementError(ARGUEMENT_ERROR_MINUTES_INVALID)
+            _LOGGER.error(ARGUMENT_ERROR_MINUTES_INVALID)
+            raise ArguementError(ARGUMENT_ERROR_MINUTES_INVALID)
         if max_count < 1 or max_count > 288:
-            _LOGGER.error(ARGUEMENT_ERROR_MAX_COUNT_INVALID)
-            raise ArguementError(ARGUEMENT_ERROR_MAX_COUNT_INVALID)
+            _LOGGER.error(ARGUMENT_ERROR_MAX_COUNT_INVALID)
+            raise ArguementError(ARGUMENT_ERROR_MAX_COUNT_INVALID)
 
         params = {
             "sessionId": self.session_id,
             "minutes": minutes,
             "maxCount": max_count,
         }
+        json_glucose_readings: List[Dict[str, Any]]
         try:
-            json_glucose_readings = self._request(
+            json_glucose_readings = self._request(  # type: ignore
                 "post", DEXCOM_GLUCOSE_READINGS_ENDPOINT, params=params
             )
         except SessionError:
@@ -230,27 +235,27 @@ class Dexcom:
                 "maxCount": max_count,
             }
 
-            json_glucose_readings = self._request(
+            json_glucose_readings = self._request(  # type: ignore
                 "post", DEXCOM_GLUCOSE_READINGS_ENDPOINT, params=params
             )
 
-        glucose_readings = []
+        glucose_readings: List[GlucoseReading] = []
         if not json_glucose_readings:
-            return None
+            return []
         for json_glucose_reading in json_glucose_readings:
             glucose_readings.append(GlucoseReading(json_glucose_reading))
         if not glucose_readings:
-            return None
+            return []
         return glucose_readings
 
-    def get_latest_glucose_reading(self) -> GlucoseReading:
+    def get_latest_glucose_reading(self) -> Optional[GlucoseReading]:
         """Get latest available glucose reading."""
         glucose_readings = self.get_glucose_readings(max_count=1)
         if not glucose_readings:
             return None
         return glucose_readings[0]
 
-    def get_current_glucose_reading(self) -> GlucoseReading:
+    def get_current_glucose_reading(self) -> Optional[GlucoseReading]:
         """Get current available glucose reading."""
         glucose_readings = self.get_glucose_readings(minutes=10, max_count=1)
         if not glucose_readings:

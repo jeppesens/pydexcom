@@ -1,0 +1,18 @@
+[tool.poetry]
+name = "pydexcom"
+version = "0.1.0"
+description = "Get Dexcom readings"
+authors = ["Tobias Jeppesen <github@tobiasjeppesen.com>"]
+
+[tool.poetry.dependencies]
+python = "^3.9"
+requests = "^2.27.1"
+
+[tool.poetry.dev-dependencies]
+flake8 = "^4.0.1"
+mypy = "^0.931"
+types-requests = "^2.27.8"
+
+[build-system]
+requires = ["poetry-core>=1.0.0"]
+build-backend = "poetry.core.masonry.api"

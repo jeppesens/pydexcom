@@ -34,9 +34,9 @@ SESSION_ERROR_SESSION_ID_DEFAULT = "Session ID default"
 SESSION_ERROR_SESSION_NOT_VALID = "Session ID not valid"
 SESSION_ERROR_SESSION_NOT_FOUND = "Session ID not found"
 
-ARGUEMENT_ERROR_MINUTES_INVALID = "Minutes must be between 1 and 1440"
-ARGUEMENT_ERROR_MAX_COUNT_INVALID = "Max count must be between 1 and 288"
-ARGUEMENT_ERROR_SERIAL_NUMBER_NULL_EMPTY = "Serial number null or empty"
+ARGUMENT_ERROR_MINUTES_INVALID = "Minutes must be between 1 and 1440"
+ARGUMENT_ERROR_MAX_COUNT_INVALID = "Max count must be between 1 and 288"
+ARGUMENT_ERROR_SERIAL_NUMBER_NULL_EMPTY = "Serial number null or empty"
 
 
 # Other
